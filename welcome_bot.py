@@ -1,9 +1,9 @@
+import logging
 from flask import Flask
 from threading import Thread
 import os
 import random
 import base64
-import logging
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, ChatMemberHandler,
@@ -12,12 +12,26 @@ from telegram.ext import (
 from google.cloud import dialogflow_v2 as dialogflow
 from google.api_core.exceptions import GoogleAPICallError
 
+# ========== CONFIGURATION ==========
 # Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# Welcome messages
+WELCOME_MESSAGES = [
+    "👋 Welcome {name} to Maker's Vault! Let's build magic together.",
+    "🎉 Hey {name}, you've just joined a community of storytellers and creators!",
+    "🔥 Big welcome {name}! Let's grow together in Maker's Vault.",
+    "🚀 {name} just landed in Maker's Vault. Time to collaborate!",
+    "✨ Welcome aboard {name}! Let's create greatness together.",
+]
+
+# Dialogflow constants
+DIALOGFLOW_LANGUAGE_CODE = "en"
+SESSION_ID = "maker-vault-session"
 
 # ========== HANDLER FUNCTIONS ==========
 async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -46,7 +60,10 @@ async def handle_direct_message(update: Update, context: ContextTypes.DEFAULT_TY
     if update.message.chat.type == "private":
         user_text = update.message.text
         dialogflow_response = await detect_intent_texts(
-            DIALOGFLOW_PROJECT_ID, SESSION_ID, user_text, DIALOGFLOW_LANGUAGE_CODE
+            os.getenv("DIALOGFLOW_PROJECT_ID"),
+            SESSION_ID,
+            user_text,
+            DIALOGFLOW_LANGUAGE_CODE
         )
         if dialogflow_response:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=dialogflow_response)
@@ -54,7 +71,7 @@ async def handle_direct_message(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't get that.")
 
-# ========== DIALOGFLOW FUNCTION ==========
+# ========== DIALOGFLOW INTEGRATION ==========
 async def detect_intent_texts(project_id, session_id, text, language_code):
     """Send user message to Dialogflow and get intent response."""
     try:
@@ -103,12 +120,7 @@ if __name__ == "__main__":
         logger.info("✅ Dialogflow credentials set up successfully")
     except Exception as e:
         logger.error(f"❌ Failed to set up Dialogflow credentials: {e}")
-
-    # Configuration
-    WELCOME_MESSAGES = [
-        "👋 Welcome {name} to Maker's Vault! Let's build magic together.",
-        # ... (rest of your messages)
-    ]
+        exit(1)
 
     # Start Flask in a separate thread
     Thread(target=run_flask).start()
@@ -127,3 +139,4 @@ if __name__ == "__main__":
         app.run_polling()
     except Exception as e:
         logger.error(f"Bot crashed with error: {e}")
+        exit(1)
