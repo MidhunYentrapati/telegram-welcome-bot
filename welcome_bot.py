@@ -1,13 +1,10 @@
-# Here's a full Python script that:
-# 1. Welcomes new users using Telegram bot (same as before).
-# 2. Uses Dialogflow to respond to direct messages sent to the bot.
-
 from flask import Flask, request
 from threading import Thread
 import os
 import random
 import asyncio
 import json
+import base64  # Added for decoding credentials
 from telegram import Update, ChatMember
 from telegram.ext import (
     ApplicationBuilder, ChatMemberHandler,
@@ -15,7 +12,17 @@ from telegram.ext import (
 )
 from google.cloud import dialogflow_v2 as dialogflow
 
-# Setup Flask to keep the Railway app alive
+# Step 1: Decode base64 credentials and set GOOGLE_APPLICATION_CREDENTIALS
+encoded_creds = os.getenv("DIALOGFLOW_CREDS_BASE64")
+if encoded_creds:
+    creds_path = "/tmp/dialogflow_creds.json"
+    with open(creds_path, "wb") as f:
+        f.write(base64.b64decode(encoded_creds))
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+else:
+    print("❌ DIALOGFLOW_CREDS_BASE64 not set. Dialogflow may not work.")
+
+# Flask setup for Railway uptime
 flask_app = Flask(__name__)
 
 @flask_app.route('/')
